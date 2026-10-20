@@ -1,0 +1,11 @@
+<div class="sleeve @(Release.CoverImage is null ? $"sleeve-fallback sleeve-{Release.Id % 3}" : "")">
+    @if (Release.CoverImage is not null)
+    {
+        <img src="@Release.CoverImage" alt="Cover art: @Release.Title" loading="lazy" class="h-full w-full object-cover" />
+    }
+    <span class="sleeve-no @(Release.CoverImage is not null ? "bg-void px-1 !text-paper" : "")">@Release.CatalogNumber</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public MusicRelease Release { get; set; } = default!;
+}

@@ -1,0 +1,29 @@
+## --- .NET & C# Build Outputs ---
+bin/
+obj/
+out/
+
+## --- Node.js & NPM ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+## --- IDE & Editor Settings ---
+.vscode/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## --- Operating System Files ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## --- Environment & Local Settings ---
+appsettings.Development.json
+appsettings.Local.json
+*.env

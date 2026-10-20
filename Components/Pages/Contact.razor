@@ -1,0 +1,113 @@
+@page "/contact"
+@page "/order"
+@rendermode InteractiveServer
+
+<PageTitle>Pre-Order — B42 Music Archive</PageTitle>
+
+<section class="border-b border-void p-6 md:p-10">
+    <p class="meta">Order form / Pre-order</p>
+    <h1 class="headline mt-4 text-[clamp(2.5rem,9vw,7rem)]">Pre-Order</h1>
+</section>
+
+<div class="grid lg:grid-cols-12">
+    <section class="p-6 md:p-10 lg:col-span-7 lg:border-r lg:border-void">
+        @if (done)
+        {
+            <div role="status" class="border border-void bg-chart p-6">
+                <p class="meta">Order confirmed</p>
+                <p class="headline mt-3 text-4xl">Ref @orderRef</p>
+                <p class="callout mt-3 text-lg">@model.Quantity × @model.CatalogNumber reserved for @model.FullName. Confirmation sent to @model.Email.</p>
+                <button class="btn mt-5" @onclick="Reset">New order</button>
+            </div>
+        }
+        else
+        {
+            <EditForm Model="model" OnValidSubmit="Submit" FormName="preorder">
+                <DataAnnotationsValidator />
+                <fieldset disabled="@busy" class="space-y-5">
+                    <legend class="meta">Pressing request</legend>
+                    <div>
+                        <label class="label" for="fn">Recipient name</label>
+                        <InputText id="fn" class="field" @bind-Value="model.FullName" />
+                        <ValidationMessage For="() => model.FullName" />
+                    </div>
+                    <div>
+                        <label class="label" for="em">Contact email</label>
+                        <InputText id="em" type="email" class="field" @bind-Value="model.Email" />
+                        <ValidationMessage For="() => model.Email" />
+                    </div>
+                    <div>
+                        <label class="label" for="cn">Catalog no.</label>
+                        <InputSelect id="cn" class="field" @bind-Value="model.CatalogNumber">
+                            <option value="">Select</option>
+                            @foreach (var r in SampleData.Releases) { <option value="@r.CatalogNumber">@r.CatalogNumber — @r.Title (@SampleData.Label(r.Format))</option> }
+                        </InputSelect>
+                        <ValidationMessage For="() => model.CatalogNumber" />
+                    </div>
+                    <div>
+                        <label class="label" for="qt">Quantity</label>
+                        <InputNumber id="qt" class="field" @bind-Value="model.Quantity" />
+                        <ValidationMessage For="() => model.Quantity" />
+                    </div>
+                    <div>
+                        <label class="label" for="ad">Shipping address</label>
+                        <InputTextArea id="ad" rows="3" class="field py-2" @bind-Value="model.ShippingAddress" />
+                        <ValidationMessage For="() => model.ShippingAddress" />
+                    </div>
+                    <div>
+                        <label class="label" for="nt">Notes (optional)</label>
+                        <InputTextArea id="nt" rows="2" class="field py-2" @bind-Value="model.Notes" />
+                        <ValidationMessage For="() => model.Notes" />
+                    </div>
+                    <div>
+                        <label class="meta flex min-h-11 items-center gap-3">
+                                                        <InputCheckbox class="h-5 w-5 accent-void" @bind-Value="model.AcceptTerms" />
+                            I accept the limited pressing terms: no restock, no refund after dispatch.
+                        </label>
+                        <ValidationMessage For="() => model.AcceptTerms" />
+                    </div>
+                    <button type="submit" class="btn-dark w-full" disabled="@busy">@(busy ? "Transmitting…" : "Submit pre-order")</button>
+                </fieldset>
+            </EditForm>
+        }
+    </section>
+
+    <aside class="p-6 md:p-10 lg:col-span-5" aria-label="Order summary">
+        <p class="meta">Order summary</p>
+        @if (Selected is { } r)
+        {
+            <div class="mt-4 border border-void">
+                <Cover Release="r" />
+                <div class="p-4">
+                    <p class="headline text-2xl">@r.Title</p>
+                    <p class="meta mt-2">@r.Artist!.Name / @SampleData.Label(r.Format)</p>
+                    <p class="meta mt-1">Matrix @r.MatrixCode</p>
+                </div>
+            </div>
+            <p class="headline mt-4 text-4xl">Total $@((r.Price * Math.Clamp(model.Quantity, 1, 5)).ToString("0.00"))</p>
+        }
+        else
+        {
+            <p class="callout mt-4 text-lg">Select a catalog number to display the pressing specification.</p>
+        }
+    </aside>
+</div>
+
+@code {
+    PreOrderForm model = new();
+    bool busy, done;
+    string orderRef = "";
+
+    MusicRelease? Selected => SampleData.Releases.FirstOrDefault(r => r.CatalogNumber == model.CatalogNumber);
+
+    async Task Submit()
+    {
+        busy = true;
+        await Task.Delay(1200); // simulated transmission
+        orderRef = $"PO-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
+        busy = false;
+        done = true;
+    }
+
+    void Reset() { model = new(); done = false; }
+}

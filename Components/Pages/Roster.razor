@@ -1,0 +1,57 @@
+@page "/roster"
+@rendermode InteractiveServer
+
+<PageTitle>Roster — B42 Music Archive</PageTitle>
+
+<section class="border-b border-void p-6 md:p-10">
+    <p class="meta">Roster / Artist files</p>
+    <h1 class="headline mt-4 text-[clamp(2.5rem,9vw,7rem)]">Roster</h1>
+</section>
+
+<div class="grid lg:grid-cols-12">
+    <aside class="border-b border-void lg:col-span-3 lg:border-b-0 lg:border-r" aria-label="Index">
+        <div class="lg:sticky lg:top-12">
+            <p class="meta border-b border-void p-3">Status index</p>
+            <button class="meta flex min-h-11 w-full items-center justify-between border-b border-void/10 px-3 hover:bg-void hover:text-paper @(status is null ? "bg-void text-paper" : "")" aria-pressed="@(status is null)" @onclick="() => status = null">All <span>@SampleData.Artists.Count</span></button>
+            @foreach (var s in Enum.GetValues<ArtistStatus>())
+            {
+                <button class="meta flex min-h-11 w-full items-center justify-between border-b border-void/10 px-3 hover:bg-void hover:text-paper @(status == s ? "bg-void text-paper" : "")" aria-pressed="@(status == s)" @onclick="() => status = s">
+                    @SampleData.Label(s) <span>@SampleData.Artists.Count(a => a.Status == s)</span>
+                </button>
+            }
+        </div>
+    </aside>
+
+    <div class="lg:col-span-9">
+        @foreach (var a in Shown)
+        {
+            <article class="border-b border-void p-6 md:p-10" aria-labelledby="a@(a.Id)">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="badge @(a.Status == ArtistStatus.OnTour ? "badge-live" : a.Status == ArtistStatus.UpcomingRelease ? "badge-warn" : "")">@SampleData.Label(a.Status)</span>
+                    <span class="meta">@a.Genre / @a.CatalogCount in catalog</span>
+                </div>
+                <h2 id="a@(a.Id)" class="headline mt-4 text-[clamp(2rem,6vw,4.5rem)]">@a.Name</h2>
+                <p class="callout mt-4 max-w-2xl text-xl">@a.Bio</p>
+                @if (a.AssociatedProject is not null) { <p class="meta mt-4">Associated project: @a.AssociatedProject</p> }
+                <p class="mt-3 flex flex-wrap gap-2">@foreach (var t in a.Tags) { <span class="badge">@t</span> }</p>
+
+                <div class="mt-6 overflow-x-auto">
+                    <table class="cat-table">
+                        <thead><tr><th>Catalog no.</th><th>Title</th><th>Format</th><th>Date</th></tr></thead>
+                        <tbody>
+                            @foreach (var r in SampleData.Releases.Where(x => x.ArtistId == a.Id))
+                            {
+                                <tr><td>@r.CatalogNumber</td><td>@r.Title</td><td>@SampleData.Label(r.Format)</td><td>@r.ReleaseDate.ToString("yyyy-MM-dd")</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        }
+    </div>
+</div>
+
+@code {
+    ArtistStatus? status;
+    IEnumerable<Artist> Shown => SampleData.Artists.Where(a => status is null || a.Status == status);
+}

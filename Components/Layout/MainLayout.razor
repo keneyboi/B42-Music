@@ -1,0 +1,36 @@
+@inherits LayoutComponentBase
+
+<a href="#main" class="skip">Skip to content</a>
+
+<div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+        @for (var i = 0; i < 2; i++)
+        {
+            <span class="px-6">NOW SPINNING — B42-MUS-001 / SALT MERIDIAN / SIDE A &nbsp;///&nbsp; ARCHIVE OPEN 2026-10-20 &nbsp;///&nbsp; PRESSING EDITION 01 &nbsp;///&nbsp; NO RESTOCKS &nbsp;///&nbsp; MATRIX CODES VERIFIED &nbsp;///&nbsp;</span>
+        }
+    </div>
+</div>
+
+<NavMenu />
+
+<main id="main" tabindex="-1">
+    @Body
+</main>
+
+<footer class="border-t border-void bg-void text-paper">
+    <div class="grid md:grid-cols-3">
+        <div class="border-b border-paper/20 p-6 md:border-b-0 md:border-r">
+            <p class="headline text-3xl">B42 Music</p>
+            <p class="meta mt-3 text-paper/60">Archive Index / Vol. 2026</p>
+        </div>
+        <div class="border-b border-paper/20 p-6 md:border-b-0 md:border-r">
+            <p class="meta text-paper/60">Archive Spec</p>
+            <p class="meta mt-3">Vinyl 180g / CD / Digital Cassette</p>
+            <p class="meta mt-1">Dates: ISO 8601</p>
+        </div>
+        <div class="p-6">
+            <p class="meta text-paper/60">Pressing Notice</p>
+            <p class="callout mt-3 text-lg">Editions are limited and numbered. Pressings are not repeated.</p>
+        </div>
+    </div>
+</footer>

@@ -1,0 +1,92 @@
+@import "tailwindcss";
+@source "../Components";
+
+@theme {
+  --color-*: initial;
+  --color-void: #000000;
+  --color-ink: #0a0a0a;
+  --color-paper: #fcfcfc;
+  --color-bone: #e5e5e0;
+  --color-line: #1a1a1a;
+  --color-rule: #d1d1cd;
+  --color-safety: #ff4f00;
+  --color-chart: #c6ff00;
+  --color-volt: #ffe600;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace;
+  --font-display: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Georgia, "Times New Roman", serif;
+}
+
+@layer base {
+  html { background: #fcfcfc; scroll-behavior: smooth; }
+  body { @apply bg-paper font-display text-void antialiased overflow-x-hidden; }
+  :focus-visible { outline: 3px solid #ff4f00; outline-offset: 2px; }
+  h1, h2, h3 { text-wrap: balance; }
+}
+
+@layer components {
+  .meta { @apply font-mono text-xs uppercase tracking-widest; }
+  .headline { @apply font-display font-extrabold uppercase tracking-tighter leading-[0.85]; }
+  .callout { @apply font-serif italic leading-snug; }
+  .skip { @apply sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:bg-chart focus:p-3 focus:font-mono focus:text-xs focus:uppercase; }
+
+  .btn, .btn-dark {
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center border border-void px-5 font-mono text-xs uppercase tracking-widest;
+  }
+  .btn { @apply bg-paper text-void hover:bg-void hover:text-paper; }
+  .btn-dark { @apply bg-void text-paper hover:bg-paper hover:text-void; }
+  .btn:disabled, .btn-dark:disabled { @apply cursor-wait opacity-60; }
+
+  .badge { @apply inline-block border border-void px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest; }
+  .badge-live { @apply border-void bg-chart text-void; }
+  .badge-warn { @apply border-void bg-volt text-void; }
+
+  .cell { @apply border-b border-r border-void/10; }
+   .grid-card { @apply block border-b border-r border-void bg-paper p-4 transition-none hover:bg-void hover:text-paper; }
+
+  .nav-link { @apply inline-flex min-h-11 items-center border-l border-void/10 px-4 font-mono text-xs uppercase tracking-widest hover:bg-void hover:text-paper; }
+  .nav-link.active { @apply bg-void text-paper; }
+  .drawer a.active { color: #c6ff00; }
+
+  .cat-table { @apply w-full border-collapse text-left; }
+  .cat-table th { @apply border-b border-r border-paper/20 bg-void p-3 font-mono text-[10px] uppercase tracking-widest text-paper; }
+  .cat-table td { @apply border-b border-r border-void/10 p-3 font-mono text-xs; }
+  .cat-table tbody tr:hover, .cat-table tbody tr.is-active { @apply bg-void text-paper; }
+
+  .field { @apply mt-2 block min-h-11 w-full rounded-none border border-void bg-paper px-3 font-mono text-sm text-void; }
+  .field:focus { @apply bg-bone; }
+.label { @apply block font-mono text-xs uppercase tracking-widest; }
+  .validation-message { @apply mt-1 inline-block bg-safety px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-void; }
+  .invalid { outline: 2px solid #ff4f00; }
+
+  /* Square vinyl sleeve built from CSS only */
+  .sleeve { @apply relative aspect-square w-full overflow-hidden border border-void; }
+  .sleeve-fallback::after {
+    content: ""; position: absolute; inset: 14%; border-radius: 9999px; transition: transform .2s steps(4);
+    background:
+      radial-gradient(circle, #ff4f00 0 7%, #fcfcfc 7% 9%, transparent 9%),
+      repeating-radial-gradient(circle, #0a0a0a 0 2px, #1a1a1a 2px 4px);
+  }
+  .group:hover .sleeve-fallback::after { transform: scale(1.08); }
+  .sleeve img { transition: transform .2s steps(4); }
+  .group:hover .sleeve img { transform: scale(1.05); }
+  .sleeve-0 { background: #000; }
+  .sleeve-1 { background: #e5e5e0; }
+  .sleeve-2 { background: #fcfcfc; }
+  .sleeve-no { @apply absolute left-2 top-2 z-10 font-mono text-[10px] uppercase tracking-widest text-paper; }
+  .sleeve-1 .sleeve-no, .sleeve-2 .sleeve-no { color: #000; }
+
+  .marquee { @apply overflow-hidden whitespace-nowrap border-b border-paper/20 bg-void py-2 font-mono text-[11px] uppercase tracking-widest text-paper; }
+  .marquee-track { display: flex; width: max-content; animation: marquee 40s linear infinite; }
+  .meter { @apply inline-flex h-4 items-end gap-0.5; }
+  .meter span { @apply w-1 bg-chart; height: 30%; animation: meter .8s steps(5) infinite; }
+  .meter span:nth-child(2) { animation-delay: .15s; }
+  .meter span:nth-child(3) { animation-delay: .3s; }
+  .meter span:nth-child(4) { animation-delay: .45s; }
+}
+
+@keyframes marquee { to { transform: translateX(-50%); } }
+@keyframes meter { 50% { height: 100%; } }
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track, .meter span { animation: none; }
+}

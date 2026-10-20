@@ -1,0 +1,165 @@
+@page "/items"
+@page "/catalog"
+@rendermode InteractiveServer
+
+<PageTitle>Catalog — B42 Music Archive</PageTitle>
+
+<section class="border-b border-void p-6 md:p-10">
+    <p class="meta">Catalog / Player</p>
+    <h1 class="headline mt-4 text-[clamp(2.5rem,9vw,7rem)]">Catalog</h1>
+</section>
+
+<section class="grid border-b border-void md:grid-cols-4" aria-label="Filters">
+    <div class="cell p-4 md:col-span-2">
+        <label class="label" for="q">Search catalog no. / title / artist</label>
+        <input id="q" class="field" placeholder="A24-MUS-001" @bind="f.Query" @bind:event="oninput" />
+    </div>
+    <div class="cell p-4">
+        <label class="label" for="fmt">Format</label>
+        <select id="fmt" class="field" @bind="f.Format">
+            <option value="">All</option>
+            @foreach (var x in Enum.GetValues<ReleaseFormat>()) { <option value="@x">@SampleData.Label(x)</option> }
+        </select>
+    </div>
+    <div class="cell p-4">
+        <label class="label" for="srt">Sort</label>
+        <select id="srt" class="field" @bind="f.Sort">
+            @foreach (var x in Enum.GetValues<CatalogSort>()) { <option value="@x">@SampleData.Label(x)</option> }
+        </select>
+    </div>
+    <div class="cell p-4 md:col-span-2">
+        <label class="label" for="art">Artist</label>
+        <select id="art" class="field" @bind="f.ArtistId">
+            <option value="">All</option>
+            @foreach (var a in SampleData.Artists) { <option value="@a.Id">@a.Name</option> }
+        </select>
+    </div>
+    <div class="cell p-4 md:col-span-2">
+        <label class="label" for="typ">Release type</label>
+        <select id="typ" class="field" @bind="f.ReleaseType">
+            <option value="">All</option>
+            @foreach (var x in Enum.GetValues<ReleaseType>()) { <option value="@x">@SampleData.Label(x)</option> }
+        </select>
+    </div>
+</section>
+
+<div class="grid lg:grid-cols-12">
+    <section class="lg:col-span-7 lg:border-r lg:border-void" aria-label="Results">
+        <p class="meta border-b border-void p-3" role="status">@Results.Count() of @SampleData.Releases.Count entries</p>
+        <div class="overflow-x-auto">
+            <table class="cat-table">
+                <thead>
+                    <tr><th>Catalog no.</th><th>Title</th><th class="hidden sm:table-cell">Format</th><th class="hidden md:table-cell">Date</th><th>Price</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Results)
+                    {
+                        <tr class="@(sel?.Id == r.Id ? "is-active" : "")">
+                            <td>@r.CatalogNumber</td>
+                            <td>
+                                <button class="min-h-11 text-left font-display text-sm font-extrabold uppercase tracking-tight" aria-pressed="@(sel?.Id == r.Id)" @onclick="() => Select(r)">@r.Title</button>
+                                <span class="block opacity-60">@r.Artist!.Name</span>
+                            </td>
+                            <td class="hidden sm:table-cell">@SampleData.Label(r.Format)</td>
+                            <td class="hidden md:table-cell">@r.ReleaseDate.ToString("yyyy-MM-dd")</td>
+                            <td>$@r.Price.ToString("0.00")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (!Results.Any())
+        {
+            <p class="meta p-6">No entries match the current criteria.</p>
+        }
+    </section>
+
+    <aside class="lg:col-span-5" aria-label="Detail">
+        @if (sel is not null)
+        {
+            <div class="p-6">
+                   <div class="max-w-sm"><Cover Release="sel" /></div>
+                <h2 class="headline mt-4 text-4xl">@sel.Title</h2>
+                <p class="callout mt-2 text-lg">@sel.Artist!.Name</p>
+                <dl class="meta mt-4 grid grid-cols-2 border-t border-void/10">
+                    <div class="cell p-2"><dt class="opacity-60">Matrix code</dt><dd>@sel.MatrixCode</dd></div>
+                    <div class="cell p-2"><dt class="opacity-60">Type</dt><dd>@SampleData.Label(sel.ReleaseType)</dd></div>
+                    <div class="cell p-2"><dt class="opacity-60">Tracks</dt><dd>@sel.TrackCount</dd></div>
+                    <div class="cell p-2"><dt class="opacity-60">Runtime</dt><dd>@SampleData.Clock(sel.Duration)</dd></div>
+                </dl>
+
+                <h3 class="meta mt-6 flex items-center gap-3">
+                    Composition
+                    @if (playing is not null) { <span class="meter" aria-hidden="true"><span></span><span></span><span></span><span></span></span> }
+                </h3>
+                <ol class="mt-2 border-t border-void">
+                    @foreach (var t in sel.Tracks)
+                    {
+                        <li>
+                            <button class="meta flex min-h-11 w-full items-center justify-between gap-3 border-b border-void/10 px-2 text-left hover:bg-void hover:text-paper @(playing == t.Number ? "bg-chart text-void" : "")"
+                                    aria-pressed="@(playing == t.Number)" @onclick="() => TogglePlay(t.Number)">
+                                <span>@(playing == t.Number ? "■" : "▶") @t.Side@t.Number.ToString("00") — @t.Title</span>
+                                <span>@SampleData.Clock(t.Duration)</span>
+                            </button>
+                        </li>
+                    }
+                </ol>
+                <p class="meta mt-2" role="status">
+                    @if (playing is int p) { <span>Playing track @p / remaining @SampleData.Clock(Remaining(p))</span> } else { <span>Stopped</span> }
+                </p>
+
+                <button class="btn-dark mt-4 w-full" @onclick="() => AddToCrate(sel)">Add to crate — $@sel.Price.ToString("0.00")</button>
+            </div>
+        }
+
+        <div class="border-t border-void p-6">
+            <h3 class="meta">Crate (@crate.Count)</h3>
+            @foreach (var c in crate)
+            {
+                <div class="meta flex min-h-11 items-center justify-between border-b border-void/10">
+                    <span>@c.CatalogNumber</span>
+                    <button class="btn px-3" aria-label="Remove @c.Title" @onclick="() => crate.Remove(c)">Remove</button>
+                </div>
+            }
+            <p class="headline mt-3 text-3xl">Total $@crate.Sum(c => c.Price).ToString("0.00")</p>
+            <a href="/contact" class="btn mt-3 w-full">Proceed to pre-order</a>
+        </div>
+    </aside>
+</div>
+
+@code {
+    readonly CatalogFilter f = new();
+    MusicRelease? sel = SampleData.Releases[0];
+    int? playing;
+    readonly List<MusicRelease> crate = new();
+
+    IEnumerable<MusicRelease> Results
+    {
+        get
+        {
+            var q = SampleData.Releases.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(f.Query))
+            {
+                var s = f.Query.Trim();
+                q = q.Where(r => r.CatalogNumber.Contains(s, StringComparison.OrdinalIgnoreCase)
+                    || r.Title.Contains(s, StringComparison.OrdinalIgnoreCase)
+                    || r.Artist!.Name.Contains(s, StringComparison.OrdinalIgnoreCase));
+            }
+            if (f.Format is { } fm) q = q.Where(r => r.Format == fm);
+            if (f.ReleaseType is { } rt) q = q.Where(r => r.ReleaseType == rt);
+            if (f.ArtistId is { } ai) q = q.Where(r => r.ArtistId == ai);
+            return f.Sort switch
+            {
+                CatalogSort.Newest => q.OrderByDescending(r => r.ReleaseDate),
+                CatalogSort.Price => q.OrderBy(r => r.Price),
+                CatalogSort.Title => q.OrderBy(r => r.Title),
+                _ => q.OrderBy(r => r.CatalogNumber)
+            };
+        }
+    }
+
+    void Select(MusicRelease r) { sel = r; playing = null; }
+    void TogglePlay(int n) => playing = playing == n ? null : n;
+    void AddToCrate(MusicRelease r) { if (!crate.Contains(r)) crate.Add(r); }
+    TimeSpan Remaining(int from) => TimeSpan.FromSeconds(sel!.Tracks.Where(t => t.Number >= from).Sum(t => t.Duration.TotalSeconds));
+}

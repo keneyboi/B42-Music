@@ -1,0 +1,40 @@
+@page "/"
+
+<PageTitle>B42 Music Archive</PageTitle>
+
+<section class="grid border-b border-void lg:grid-cols-12">
+    <div class="p-6 md:p-10 lg:col-span-8 lg:border-r lg:border-void">
+        <p class="meta">Archive Index / 2026-10-20</p>
+        <h1 class="headline mt-6 text-[clamp(3.25rem,10vw,11rem)]">Music<br />Archive</h1>
+        <p class="callout mt-8 max-w-xl text-xl md:text-2xl">Scores, sessions and studio records from the A24 catalog. Each entry carries a catalog number, matrix code and fixed pressing edition.</p>
+        <a href="/items" class="btn-dark mt-8">Open catalog</a>
+    </div>
+    <dl class="grid grid-cols-2 lg:col-span-4 lg:grid-cols-1">
+        <div class="cell p-6"><dt class="meta">Releases</dt><dd class="headline mt-2 text-6xl">@SampleData.Releases.Count</dd></div>
+        <div class="cell p-6"><dt class="meta">Artists</dt><dd class="headline mt-2 text-6xl">@SampleData.Artists.Count</dd></div>
+        <div class="cell p-6"><dt class="meta">Total runtime</dt><dd class="headline mt-2 text-4xl">@SampleData.Clock(TimeSpan.FromSeconds(SampleData.Releases.Sum(r => r.Duration.TotalSeconds)))</dd></div>
+        <div class="cell p-6"><dt class="meta">Tracks</dt><dd class="headline mt-2 text-4xl">@SampleData.Releases.Sum(r => r.TrackCount)</dd></div>
+    </dl>
+</section>
+
+<section aria-labelledby="featured">
+    <div class="flex items-end justify-between border-b border-void p-4 md:px-10">
+        <h2 id="featured" class="headline text-3xl">Featured pressings</h2>
+        <span class="meta">Selection 01–03</span>
+    </div>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3">
+        @foreach (var r in SampleData.Releases.Where(x => x.IsFeatured))
+        {
+            <a href="/items" class="grid-card group">
+                <Cover Release="r" />
+                <div class="mt-4 flex items-start justify-between gap-2">
+                    <h3 class="headline text-2xl">@r.Title</h3>
+                    <span class="badge badge-live shrink-0">Featured</span>
+                </div>
+                <p class="meta mt-2">@r.Artist!.Name</p>
+                <p class="meta mt-1 opacity-60">@SampleData.Label(r.ReleaseType) / @SampleData.Label(r.Format) / @r.ReleaseDate.ToString("yyyy-MM-dd")</p>
+                <p class="meta mt-1 opacity-60">Matrix @r.MatrixCode / @r.TrackCount trk / @SampleData.Clock(r.Duration)</p>
+            </a>
+        }
+    </div>
+</section>
