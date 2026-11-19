@@ -1,6 +1,8 @@
 @page "/items"
 @page "/catalog"
 @rendermode InteractiveServer
+@inject Supabase.Client Db
+@using static Supabase.Postgrest.Constants
 
 <PageTitle>Catalog — B42 Music Archive</PageTitle>
 
@@ -31,7 +33,7 @@
         <label class="label" for="art">Artist</label>
         <select id="art" class="field" @bind="f.ArtistId">
             <option value="">All</option>
-            @foreach (var a in SampleData.Artists) { <option value="@a.Id">@a.Name</option> }
+            @foreach (var a in artists) { <option value="@a.Id">@a.Name</option> }
         </select>
     </div>
     <div class="cell p-4 md:col-span-2">
@@ -43,9 +45,40 @@
     </div>
 </section>
 
+<section class="border-b border-void p-4 md:px-6" aria-label="Add release">
+    <p class="meta">New catalog entry</p>
+    <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+        <input @bind="newCatalogNo" placeholder="A24-MUS-010" class="field" />
+        <input @bind="newTitle" placeholder="Release title" class="field" />
+        <select @bind="newArtistId" class="field">
+            <option value="0">Select artist</option>
+            @foreach (var a in artists)
+            {
+                <option value="@a.Id">@a.Name</option>
+            }
+        </select>
+        <select @bind="newType" class="field">
+            @foreach (var t in Enum.GetValues<ReleaseType>())
+            {
+                <option value="@t">@SampleData.Label(t)</option>
+            }
+        </select>
+        <select @bind="newFormat" class="field">
+            @foreach (var fm in Enum.GetValues<ReleaseFormat>())
+            {
+                <option value="@fm">@SampleData.Label(fm)</option>
+            }
+        </select>
+        <input @bind="newPrice" type="number" step="0.01" placeholder="Price" class="field" />
+    </div>
+    <button @onclick="AddRelease" disabled="@saving" class="btn-dark mt-3 disabled:opacity-50">
+        @(saving ? "Saving..." : "Add to catalog")
+    </button>
+</section>
+
 <div class="grid lg:grid-cols-12">
     <section class="lg:col-span-7 lg:border-r lg:border-void" aria-label="Results">
-        <p class="meta border-b border-void p-3" role="status">@Results.Count() of @SampleData.Releases.Count entries</p>
+        <p class="meta border-b border-void p-3" role="status">@Results.Count() of @releases.Count entries</p>
         <div class="overflow-x-auto">
             <table class="cat-table">
                 <thead>
@@ -58,7 +91,7 @@
                             <td>@r.CatalogNumber</td>
                             <td>
                                 <button class="min-h-11 text-left font-display text-sm font-extrabold uppercase tracking-tight" aria-pressed="@(sel?.Id == r.Id)" @onclick="() => Select(r)">@r.Title</button>
-                                <span class="block opacity-60">@r.Artist!.Name</span>
+                                <span class="block opacity-60">@r.Artist?.Name</span>
                             </td>
                             <td class="hidden sm:table-cell">@SampleData.Label(r.Format)</td>
                             <td class="hidden md:table-cell">@r.ReleaseDate.ToString("yyyy-MM-dd")</td>
@@ -78,9 +111,9 @@
         @if (sel is not null)
         {
             <div class="p-6">
-                   <div class="max-w-sm"><Cover Release="sel" /></div>
+                <div class="max-w-sm"><Cover Release="sel" /></div>
                 <h2 class="headline mt-4 text-4xl">@sel.Title</h2>
-                <p class="callout mt-2 text-lg">@sel.Artist!.Name</p>
+                <p class="callout mt-2 text-lg">@sel.Artist?.Name</p>
                 <dl class="meta mt-4 grid grid-cols-2 border-t border-void/10">
                     <div class="cell p-2"><dt class="opacity-60">Matrix code</dt><dd>@sel.MatrixCode</dd></div>
                     <div class="cell p-2"><dt class="opacity-60">Type</dt><dd>@SampleData.Label(sel.ReleaseType)</dd></div>
@@ -129,21 +162,58 @@
 
 @code {
     readonly CatalogFilter f = new();
-    MusicRelease? sel = SampleData.Releases[0];
+    List<Artist> artists = new();
+    List<MusicRelease> releases = new();
+    MusicRelease? sel;
     int? playing;
     readonly List<MusicRelease> crate = new();
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    async Task Load()
+    {
+        var aRes = await Db.From<Artist>()
+            .Where(a => a.DeletedAt == null)
+            .Order(a => a.Id, Ordering.Ascending)
+            .Range(0, 49)
+            .Get();
+
+        var rRes = await Db.From<MusicRelease>()
+            .Where(r => r.DeletedAt == null)
+            .Order(r => r.Id, Ordering.Ascending)
+            .Range(0, 49)
+            .Get();
+
+        var tRes = await Db.From<Track>()
+            .Where(t => t.DeletedAt == null)
+            .Order(t => t.Number, Ordering.Ascending)
+            .Range(0, 199)
+            .Get();
+
+        artists = aRes.Models;
+        releases = rRes.Models;
+        var tracks = tRes.Models;
+
+        foreach (var r in releases)
+        {
+            r.Artist = artists.FirstOrDefault(a => a.Id == r.ArtistId);
+            r.Tracks = tracks.Where(t => t.MusicReleaseId == r.Id).ToList();
+        }
+
+        sel = releases.FirstOrDefault();
+    }
 
     IEnumerable<MusicRelease> Results
     {
         get
         {
-            var q = SampleData.Releases.AsEnumerable();
+            var q = releases.AsEnumerable();
             if (!string.IsNullOrWhiteSpace(f.Query))
             {
                 var s = f.Query.Trim();
                 q = q.Where(r => r.CatalogNumber.Contains(s, StringComparison.OrdinalIgnoreCase)
                     || r.Title.Contains(s, StringComparison.OrdinalIgnoreCase)
-                    || r.Artist!.Name.Contains(s, StringComparison.OrdinalIgnoreCase));
+                    || (r.Artist?.Name.Contains(s, StringComparison.OrdinalIgnoreCase) ?? false));
             }
             if (f.Format is { } fm) q = q.Where(r => r.Format == fm);
             if (f.ReleaseType is { } rt) q = q.Where(r => r.ReleaseType == rt);
@@ -162,4 +232,41 @@
     void TogglePlay(int n) => playing = playing == n ? null : n;
     void AddToCrate(MusicRelease r) { if (!crate.Contains(r)) crate.Add(r); }
     TimeSpan Remaining(int from) => TimeSpan.FromSeconds(sel!.Tracks.Where(t => t.Number >= from).Sum(t => t.Duration.TotalSeconds));
+
+    string newCatalogNo = "";
+    string newTitle = "";
+    long newArtistId;
+    ReleaseType newType = ReleaseType.StudioAlbum;
+    ReleaseFormat newFormat = ReleaseFormat.Vinyl;
+    decimal newPrice;
+    bool saving;
+
+    async Task AddRelease()
+    {
+        if (string.IsNullOrWhiteSpace(newCatalogNo)
+            || string.IsNullOrWhiteSpace(newTitle)
+            || newArtistId == 0)
+            return;
+
+        saving = true;
+
+        await Db.From<MusicRelease>().Insert(new MusicRelease
+        {
+            CatalogNumber = newCatalogNo.Trim(),
+            Title = newTitle.Trim(),
+            ArtistId = newArtistId,
+            ReleaseType = newType,
+            Format = newFormat,
+            ReleaseDate = DateOnly.FromDateTime(DateTime.Today),
+            Price = newPrice
+        });
+
+        newCatalogNo = "";
+        newTitle = "";
+        newArtistId = 0;
+        newPrice = 0;
+        saving = false;
+
+        await Load();
+    }
 }

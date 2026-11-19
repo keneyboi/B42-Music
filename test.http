@@ -1,0 +1,6 @@
+@url = https://xtivojdhrzepfnoqokig.supabase.co
+@key = sb_publishable_rhyqxi8tVdokSv9_K0y8Qg_tyWb5CJ-
+
+GET {{url}}/rest/v1/artists?select=*
+apikey: {{key}}
+

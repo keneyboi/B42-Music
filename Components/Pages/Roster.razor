@@ -1,5 +1,7 @@
 @page "/roster"
 @rendermode InteractiveServer
+@inject Supabase.Client Db
+@using static Supabase.Postgrest.Constants
 
 <PageTitle>Roster — B42 Music Archive</PageTitle>
 
@@ -12,17 +14,34 @@
     <aside class="border-b border-void lg:col-span-3 lg:border-b-0 lg:border-r" aria-label="Index">
         <div class="lg:sticky lg:top-12">
             <p class="meta border-b border-void p-3">Status index</p>
-            <button class="meta flex min-h-11 w-full items-center justify-between border-b border-void/10 px-3 hover:bg-void hover:text-paper @(status is null ? "bg-void text-paper" : "")" aria-pressed="@(status is null)" @onclick="() => status = null">All <span>@SampleData.Artists.Count</span></button>
+            <button class="meta flex min-h-11 w-full items-center justify-between border-b border-void/10 px-3 hover:bg-void hover:text-paper @(status is null ? "bg-void text-paper" : "")" aria-pressed="@(status is null)" @onclick="() => status = null">All <span>@artists.Count</span></button>
             @foreach (var s in Enum.GetValues<ArtistStatus>())
             {
                 <button class="meta flex min-h-11 w-full items-center justify-between border-b border-void/10 px-3 hover:bg-void hover:text-paper @(status == s ? "bg-void text-paper" : "")" aria-pressed="@(status == s)" @onclick="() => status = s">
-                    @SampleData.Label(s) <span>@SampleData.Artists.Count(a => a.Status == s)</span>
+                    @SampleData.Label(s) <span>@artists.Count(a => a.Status == s)</span>
                 </button>
             }
         </div>
     </aside>
 
     <div class="lg:col-span-9">
+        <div class="border-b border-void p-6 md:p-10">
+            <p class="meta">New artist entry</p>
+            <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <input @bind="newName" placeholder="Artist name" class="field" />
+                <input @bind="newGenre" placeholder="Genre" class="field" />
+                <select @bind="newStatus" class="field">
+                    @foreach (var s in Enum.GetValues<ArtistStatus>())
+                    {
+                        <option value="@s">@SampleData.Label(s)</option>
+                    }
+                </select>
+                <input @bind="newBio" placeholder="Short bio" class="field" />
+            </div>
+            <button @onclick="AddArtist" disabled="@saving" class="btn-dark mt-3 disabled:opacity-50">
+                @(saving ? "Saving..." : "Add artist")
+            </button>
+        </div>
         @foreach (var a in Shown)
         {
             <article class="border-b border-void p-6 md:p-10" aria-labelledby="a@(a.Id)">
@@ -39,7 +58,7 @@
                     <table class="cat-table">
                         <thead><tr><th>Catalog no.</th><th>Title</th><th>Format</th><th>Date</th></tr></thead>
                         <tbody>
-                            @foreach (var r in SampleData.Releases.Where(x => x.ArtistId == a.Id))
+                            @foreach (var r in releases.Where(x => x.ArtistId == a.Id))
                             {
                                 <tr><td>@r.CatalogNumber</td><td>@r.Title</td><td>@SampleData.Label(r.Format)</td><td>@r.ReleaseDate.ToString("yyyy-MM-dd")</td></tr>
                             }
@@ -53,5 +72,55 @@
 
 @code {
     ArtistStatus? status;
-    IEnumerable<Artist> Shown => SampleData.Artists.Where(a => status is null || a.Status == status);
+    List<Artist> artists = new();
+    List<MusicRelease> releases = new();
+
+    IEnumerable<Artist> Shown => artists.Where(a => status is null || a.Status == status);
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    async Task Load()
+    {
+        var aRes = await Db.From<Artist>()
+            .Where(a => a.DeletedAt == null)
+            .Order(a => a.Id, Ordering.Ascending)
+            .Range(0, 49)
+            .Get();
+
+        var rRes = await Db.From<MusicRelease>()
+            .Where(r => r.DeletedAt == null)
+            .Order(r => r.Id, Ordering.Ascending)
+            .Range(0, 49)
+            .Get();
+
+        artists = aRes.Models;
+        releases = rRes.Models;
+    }
+    string newName = "";
+    string newGenre = "";
+    string newBio = "";
+    ArtistStatus newStatus = ArtistStatus.Active;
+    bool saving;
+
+    async Task AddArtist()
+    {
+        if (string.IsNullOrWhiteSpace(newName)) return;
+        saving = true;
+
+        await Db.From<Artist>().Insert(new Artist
+        {
+            Name = newName.Trim(),
+            Genre = newGenre.Trim(),
+            Bio = newBio.Trim(),
+            Status = newStatus
+        });
+
+        newName = "";
+        newGenre = "";
+        newBio = "";
+        newStatus = ArtistStatus.Active;
+        saving = false;
+
+        await Load();
+    }
 }

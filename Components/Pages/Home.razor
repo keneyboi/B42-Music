@@ -1,4 +1,6 @@
 @page "/"
+@inject Supabase.Client Db
+@using static Supabase.Postgrest.Constants
 
 <PageTitle>B42 Music Archive</PageTitle>
 
@@ -10,10 +12,10 @@
         <a href="/items" class="btn-dark mt-8">Open catalog</a>
     </div>
     <dl class="grid grid-cols-2 lg:col-span-4 lg:grid-cols-1">
-        <div class="cell p-6"><dt class="meta">Releases</dt><dd class="headline mt-2 text-6xl">@SampleData.Releases.Count</dd></div>
-        <div class="cell p-6"><dt class="meta">Artists</dt><dd class="headline mt-2 text-6xl">@SampleData.Artists.Count</dd></div>
-        <div class="cell p-6"><dt class="meta">Total runtime</dt><dd class="headline mt-2 text-4xl">@SampleData.Clock(TimeSpan.FromSeconds(SampleData.Releases.Sum(r => r.Duration.TotalSeconds)))</dd></div>
-        <div class="cell p-6"><dt class="meta">Tracks</dt><dd class="headline mt-2 text-4xl">@SampleData.Releases.Sum(r => r.TrackCount)</dd></div>
+        <div class="cell p-6"><dt class="meta">Releases</dt><dd class="headline mt-2 text-6xl">@releases.Count</dd></div>
+        <div class="cell p-6"><dt class="meta">Artists</dt><dd class="headline mt-2 text-6xl">@artists.Count</dd></div>
+        <div class="cell p-6"><dt class="meta">Total runtime</dt><dd class="headline mt-2 text-4xl">@SampleData.Clock(TimeSpan.FromSeconds(releases.Sum(r => r.Duration.TotalSeconds)))</dd></div>
+        <div class="cell p-6"><dt class="meta">Tracks</dt><dd class="headline mt-2 text-4xl">@releases.Sum(r => r.TrackCount)</dd></div>
     </dl>
 </section>
 
@@ -23,7 +25,7 @@
         <span class="meta">Selection 01–03</span>
     </div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-3">
-        @foreach (var r in SampleData.Releases.Where(x => x.IsFeatured))
+        @foreach (var r in releases.Where(x => x.IsFeatured))
         {
             <a href="/items" class="grid-card group">
                 <Cover Release="r" />
@@ -31,10 +33,48 @@
                     <h3 class="headline text-2xl">@r.Title</h3>
                     <span class="badge badge-live shrink-0">Featured</span>
                 </div>
-                <p class="meta mt-2">@r.Artist!.Name</p>
+                <p class="meta mt-2">@r.Artist?.Name</p>
                 <p class="meta mt-1 opacity-60">@SampleData.Label(r.ReleaseType) / @SampleData.Label(r.Format) / @r.ReleaseDate.ToString("yyyy-MM-dd")</p>
                 <p class="meta mt-1 opacity-60">Matrix @r.MatrixCode / @r.TrackCount trk / @SampleData.Clock(r.Duration)</p>
             </a>
         }
     </div>
 </section>
+
+@code {
+    List<Artist> artists = new();
+    List<MusicRelease> releases = new();
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    async Task Load()
+    {
+        var aRes = await Db.From<Artist>()
+            .Where(a => a.DeletedAt == null)
+            .Order(a => a.Id, Ordering.Ascending)
+            .Range(0, 49)
+            .Get();
+
+        var rRes = await Db.From<MusicRelease>()
+            .Where(r => r.DeletedAt == null)
+            .Order(r => r.Id, Ordering.Ascending)
+            .Range(0, 49)
+            .Get();
+
+        var tRes = await Db.From<Track>()
+            .Where(t => t.DeletedAt == null)
+            .Order(t => t.Number, Ordering.Ascending)
+            .Range(0, 199)
+            .Get();
+
+        artists = aRes.Models;
+        releases = rRes.Models;
+        var tracks = tRes.Models;
+
+        foreach (var r in releases)
+        {
+            r.Artist = artists.FirstOrDefault(a => a.Id == r.ArtistId);
+            r.Tracks = tracks.Where(t => t.MusicReleaseId == r.Id).ToList();
+        }
+    }
+}

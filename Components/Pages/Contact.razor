@@ -1,6 +1,8 @@
 @page "/contact"
 @page "/order"
 @rendermode InteractiveServer
+@inject Supabase.Client Db
+@using static Supabase.Postgrest.Constants
 
 <PageTitle>Pre-Order — B42 Music Archive</PageTitle>
 
@@ -40,7 +42,7 @@
                         <label class="label" for="cn">Catalog no.</label>
                         <InputSelect id="cn" class="field" @bind-Value="model.CatalogNumber">
                             <option value="">Select</option>
-                            @foreach (var r in SampleData.Releases) { <option value="@r.CatalogNumber">@r.CatalogNumber — @r.Title (@SampleData.Label(r.Format))</option> }
+                            @foreach (var r in releases) { <option value="@r.CatalogNumber">@r.CatalogNumber — @r.Title (@SampleData.Label(r.Format))</option> }
                         </InputSelect>
                         <ValidationMessage For="() => model.CatalogNumber" />
                     </div>
@@ -61,7 +63,7 @@
                     </div>
                     <div>
                         <label class="meta flex min-h-11 items-center gap-3">
-                                                        <InputCheckbox class="h-5 w-5 accent-void" @bind-Value="model.AcceptTerms" />
+                            <InputCheckbox class="h-5 w-5 accent-void" @bind-Value="model.AcceptTerms" />
                             I accept the limited pressing terms: no restock, no refund after dispatch.
                         </label>
                         <ValidationMessage For="() => model.AcceptTerms" />
@@ -80,7 +82,7 @@
                 <Cover Release="r" />
                 <div class="p-4">
                     <p class="headline text-2xl">@r.Title</p>
-                    <p class="meta mt-2">@r.Artist!.Name / @SampleData.Label(r.Format)</p>
+                    <p class="meta mt-2">@r.Artist?.Name / @SampleData.Label(r.Format)</p>
                     <p class="meta mt-1">Matrix @r.MatrixCode</p>
                 </div>
             </div>
@@ -95,15 +97,41 @@
 
 @code {
     PreOrderForm model = new();
+    List<MusicRelease> releases = new();
     bool busy, done;
     string orderRef = "";
 
-    MusicRelease? Selected => SampleData.Releases.FirstOrDefault(r => r.CatalogNumber == model.CatalogNumber);
+    MusicRelease? Selected => releases.FirstOrDefault(r => r.CatalogNumber == model.CatalogNumber);
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    async Task Load()
+    {
+        var aRes = await Db.From<Artist>()
+            .Where(a => a.DeletedAt == null)
+            .Order(a => a.Id, Ordering.Ascending)
+            .Range(0, 49)
+            .Get();
+
+        var rRes = await Db.From<MusicRelease>()
+            .Where(r => r.DeletedAt == null)
+            .Order(r => r.Id, Ordering.Ascending)
+            .Range(0, 49)
+            .Get();
+
+        var artists = aRes.Models;
+        releases = rRes.Models;
+
+        foreach (var r in releases)
+        {
+            r.Artist = artists.FirstOrDefault(a => a.Id == r.ArtistId);
+        }
+    }
 
     async Task Submit()
     {
         busy = true;
-        await Task.Delay(1200); // simulated transmission
+        await Db.From<PreOrderForm>().Insert(model);
         orderRef = $"PO-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
         busy = false;
         done = true;
